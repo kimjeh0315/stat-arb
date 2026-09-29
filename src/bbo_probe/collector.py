@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 import random
 import time
@@ -8,7 +9,7 @@ from typing import Any, Dict, Iterable, List, TextIO
 
 import websockets
 
-from .adapters import VenueAdapter
+from .exchanges.base import ExchangeAdapter, InvalidMessage
 from .models import BBO
 
 
@@ -80,7 +81,18 @@ class QualityTracker:
         return result
 
 
-async def collect_adapter(adapter: VenueAdapter, output: TextIO, tracker: QualityTracker,
+async def _send_heartbeats(adapter: ExchangeAdapter, websocket: Any) -> None:
+    interval = adapter.heartbeat_interval
+    if interval is None:
+        return
+    while True:
+        await asyncio.sleep(interval)
+        message = adapter.heartbeat_message()
+        if message is not None:
+            await websocket.send(json.dumps(message))
+
+
+async def collect_adapter(adapter: ExchangeAdapter, output: TextIO, tracker: QualityTracker,
                           stop_at: float, latest: Dict[str, BBO]) -> None:
     attempts = 0
     while time.monotonic() < stop_at:
@@ -88,23 +100,32 @@ async def collect_adapter(adapter: VenueAdapter, output: TextIO, tracker: Qualit
             async with websockets.connect(adapter.url, ping_interval=20, ping_timeout=20,
                                           open_timeout=10, close_timeout=5) as ws:
                 attempts = 0
-                subscription = adapter.subscription()
-                if subscription is not None:
+                for subscription in adapter.subscription_messages():
                     await ws.send(json.dumps(subscription))
-                while time.monotonic() < stop_at:
-                    timeout = min(5.0, max(0.05, stop_at - time.monotonic()))
-                    try:
-                        raw = await asyncio.wait_for(ws.recv(), timeout=timeout)
-                    except asyncio.TimeoutError:
-                        continue
-                    recv_ts_ns, recv_mono_ns = time.time_ns(), time.monotonic_ns()
-                    bbo = adapter.parse(json.loads(raw), recv_ts_ns, recv_mono_ns)
-                    if bbo is None:
-                        continue
-                    tracker.observe(bbo)
-                    latest[bbo.exchange] = bbo
-                    output.write(json.dumps(bbo.to_dict(), separators=(",", ":")) + "\n")
-                    output.flush()
+                heartbeat_task = asyncio.create_task(_send_heartbeats(adapter, ws))
+                try:
+                    while time.monotonic() < stop_at:
+                        timeout = min(5.0, max(0.05, stop_at - time.monotonic()))
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=timeout)
+                        except asyncio.TimeoutError:
+                            continue
+                        recv_ts_ns, recv_mono_ns = time.time_ns(), time.monotonic_ns()
+                        try:
+                            bbo = adapter.parse(json.loads(raw), recv_ts_ns, recv_mono_ns)
+                        except (InvalidMessage, KeyError, TypeError, ValueError):
+                            tracker.counts[adapter.name]["invalid_messages"] += 1
+                            continue
+                        if bbo is None:
+                            continue
+                        tracker.observe(bbo)
+                        latest[bbo.exchange] = bbo
+                        output.write(json.dumps(bbo.to_dict(), separators=(",", ":")) + "\n")
+                        output.flush()
+                finally:
+                    heartbeat_task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await heartbeat_task
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -114,7 +135,7 @@ async def collect_adapter(adapter: VenueAdapter, output: TextIO, tracker: Qualit
             await asyncio.sleep(min(8.0, (2 ** min(attempts, 3)) + random.random()))
 
 
-async def run_probe(adapters: Iterable[VenueAdapter], duration: float, output_path: Path) -> dict:
+async def run_probe(adapters: Iterable[ExchangeAdapter], duration: float, output_path: Path) -> dict:
     tracker = QualityTracker()
     latest: Dict[str, BBO] = {}
     stop_at = time.monotonic() + duration

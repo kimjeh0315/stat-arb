@@ -3,8 +3,8 @@ import asyncio
 import json
 from pathlib import Path
 
-from .adapters import ADAPTERS
 from .collector import run_probe
+from .exchanges import ADAPTERS
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bbo-probe"
+version = "0.1.0"
+description = "Normalized BBO connectivity and data-quality probe for crypto venues"
+requires-python = ">=3.9"
+dependencies = ["websockets>=12,<16"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+bbo-probe = "bbo_probe.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

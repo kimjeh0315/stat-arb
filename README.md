@@ -11,12 +11,12 @@ pytest
 bbo-probe --duration 60 --symbols BTC --output data/bbo.jsonl
 ```
 
-거래소와 자산을 선택하거나 상위 20개 perpetual을 거래소당 한 WebSocket으로
+거래소와 자산을 선택하거나 24시간 거래대금 상위 50개 perpetual을 거래소당 한 WebSocket으로
 묶어 수집할 수 있다.
 
 ```bash
 make collect VENUES="bybit aster" SYMBOLS="BTC ETH SOL" DURATION=300
-make collect-top20 VENUES="bybit hyperliquid aster grvt" DURATION=300
+make collect-top50 VENUES="bybit hyperliquid aster grvt" DURATION=300
 ```
 
 가설은 [simple_mean_reversion.py](hypotheses/simple_mean_reversion.py)의 짧은
@@ -43,7 +43,7 @@ src/bbo_probe/
     ├── bybit.py           # V5 linear orderbook.1
     ├── hyperliquid.py     # block 기반 bbo feed
     ├── aster.py           # futures bookTicker
-    └── grvt.py            # JSON-RPC v1.book.s snapshot
+    └── grvt.py            # JSON-RPC v1.book.d + local order book
 ```
 
 ## 거래소별 현재 설정
@@ -53,6 +53,6 @@ src/bbo_probe/
 | Bybit | linear `orderbook.1` | 10ms 표기, L1 snapshot-only, 20초 JSON ping, 3초 무변경 시 동일 update 재전송 가능 |
 | Hyperliquid | `bbo` | BBO가 block에서 바뀔 때 전송, 한쪽이 없으면 null 가능, 60초 무전송 시 연결 종료 |
 | Aster | futures `bookTicker` | BBO 변경 실시간 전송, protocol ping/pong, 연결 수명 24시간 |
-| GRVT | `v1.book.s`, `@500-10` | 500ms snapshot, 나노초 event time, sequence/prev_sequence 제공 |
+| GRVT | `v1.book.d`, `@50` | 최초 full snapshot 후 50ms delta, 로컬 book 반영, gap 시 재연결 |
 
 [Bybit orderbook](https://bybit-exchange.github.io/docs/v5/websocket/public/orderbook), [Hyperliquid subscriptions](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/websocket/subscriptions), [Aster futures streams](https://asterdex.github.io/aster-api-website/futures/websocket-market-streams/), [GRVT market-data streams](https://api-docs.grvt.io/market_data_streams/).

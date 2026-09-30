@@ -16,6 +16,17 @@ def test_build_adapters_batches_symbols_per_venue() -> None:
     assert message["params"] == ["btcusdt@bookTicker", "ethusdt@bookTicker"]
 
 
+def test_build_adapters_batches_grvt_delta_subscriptions() -> None:
+    adapters, missing = build_adapters(["grvt"], ["BTC", "ETH"])
+    assert missing == []
+    [adapter] = adapters
+    [message] = list(adapter.subscription_messages())
+    assert message["params"] == {
+        "stream": "v1.book.d",
+        "selectors": ["BTC_USDT_Perp@50", "ETH_USDT_Perp@50"],
+    }
+
+
 def test_event_backtest_uses_bid_ask_and_costs(tmp_path) -> None:
     rows = [
         ("bybit", "BTCUSDT", "100", "101", 1_000_000_000),

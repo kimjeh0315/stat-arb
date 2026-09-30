@@ -1,4 +1,7 @@
+import pytest
+
 from bbo_probe.exchanges import AsterAdapter, BybitAdapter, GrvtAdapter, HyperliquidAdapter
+from bbo_probe.exchanges.base import ReconnectRequired
 
 
 NOW = 1_700_000_000_100_000_000
@@ -54,19 +57,40 @@ def test_aster_subscription_uses_lowercase_symbol() -> None:
     }]
 
 
-def test_grvt_sorts_snapshot_and_preserves_sequence() -> None:
-    quote = GrvtAdapter().parse({"stream": "v1.book.s", "selector": "BTC_USDT_Perp",
-        "sequence_number": "11", "prev_sequence_number": "10", "feed": {
+def test_grvt_applies_delta_and_removes_zero_size_level() -> None:
+    adapter = GrvtAdapter()
+    quote = adapter.parse({"stream": "v1.book.d", "selector": "BTC_USDT_Perp",
+        "sequence_number": "0", "prev_sequence_number": "0", "feed": {
         "event_time": "1700000000000000000", "instrument": "BTC_USDT_Perp",
         "bids": [{"price": "99", "size": "1"}, {"price": "100", "size": "2"}],
         "asks": [{"price": "102", "size": "1"}, {"price": "101", "size": "3"}]}}, NOW, MONO)
     assert quote is not None and quote.bid_price == 100 and quote.ask_price == 101
-    assert quote.prev_sequence == 10
+    quote = adapter.parse({"stream": "v1.book.d", "selector": "BTC_USDT_Perp",
+        "sequence_number": "31", "prev_sequence_number": "30", "feed": {
+        "event_time": "1700000000000000001", "instrument": "BTC_USDT_Perp",
+        "bids": [{"price": "100", "size": "0"}, {"price": "99.5", "size": "4"}],
+        "asks": []}}, NOW, MONO)
+    assert quote is not None and quote.bid_price == 99.5 and quote.bid_size == 4
+
+
+def test_grvt_rejects_gap_after_first_delta() -> None:
+    adapter = GrvtAdapter()
+    payload = {"stream": "v1.book.d", "selector": "BTC_USDT_Perp",
+        "sequence_number": "0", "prev_sequence_number": "0", "feed": {
+        "event_time": "1700000000000000000", "instrument": "BTC_USDT_Perp",
+        "bids": [{"price": "100", "size": "2"}],
+        "asks": [{"price": "101", "size": "3"}]}}
+    assert adapter.parse(payload, NOW, MONO) is not None
+    payload["sequence_number"], payload["prev_sequence_number"] = "31", "30"
+    assert adapter.parse(payload, NOW, MONO) is not None
+    payload["sequence_number"], payload["prev_sequence_number"] = "33", "32"
+    with pytest.raises(ReconnectRequired):
+        adapter.parse(payload, NOW, MONO)
 
 
 def test_grvt_subscription_selector() -> None:
-    assert list(GrvtAdapter(rate_ms=500, depth=10).subscription_messages()) == [{
+    assert list(GrvtAdapter().subscription_messages()) == [{
         "jsonrpc": "2.0", "method": "subscribe", "params": {
-            "stream": "v1.book.s", "selectors": ["BTC_USDT_Perp@500-10"]
+            "stream": "v1.book.d", "selectors": ["BTC_USDT_Perp@50"]
         }, "id": 1
     }]

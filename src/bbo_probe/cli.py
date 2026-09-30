@@ -19,8 +19,8 @@ def build_parser() -> argparse.ArgumentParser:
     market_group = parser.add_mutually_exclusive_group()
     market_group.add_argument("--symbols", nargs="+", default=["BTC"], metavar="ASSET",
                               help="canonical assets, for example BTC ETH SOL")
-    market_group.add_argument("--top", type=int, choices=range(1, 21), metavar="N",
-                              help="collect the first N assets from the documented volume universe")
+    market_group.add_argument("--top", type=int, choices=range(1, 51), metavar="N",
+                              help="collect the first N assets from the documented turnover universe")
     return parser
 
 

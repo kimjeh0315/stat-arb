@@ -42,11 +42,14 @@ class BatchAdapter(ExchangeAdapter):
         if self.name == "aster":
             return ({"method": "SUBSCRIBE", "params": [p for msg in messages for p in msg["params"]], "id": 1},)
         if self.name == "grvt":
+            streams = {msg["params"]["stream"] for msg in messages}
+            if len(streams) != 1:
+                raise ValueError("all batched GRVT adapters must use the same stream")
             return ({
                 "jsonrpc": "2.0",
                 "method": "subscribe",
                 "params": {
-                    "stream": "v1.book.s",
+                    "stream": streams.pop(),
                     "selectors": [s for msg in messages for s in msg["params"]["selectors"]],
                 },
                 "id": 1,

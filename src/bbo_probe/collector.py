@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, List, TextIO
 
 import websockets
 
-from .exchanges.base import ExchangeAdapter, InvalidMessage
+from .exchanges.base import ExchangeAdapter, InvalidMessage, ReconnectRequired
 from .models import BBO
 
 
@@ -41,6 +41,7 @@ class QualityTracker:
         # GRVT documents sequence 0 as snapshot; the following live sequence need not follow 0.
         if bbo.sequence == 0:
             stats["snapshots"] += 1
+            self.last_sequence.pop(stream_key, None)
             return
         previous = self.last_sequence.get(stream_key)
         if previous is not None and bbo.sequence == previous:
@@ -114,6 +115,9 @@ async def collect_adapter(adapter: ExchangeAdapter, output: TextIO, tracker: Qua
                         recv_ts_ns, recv_mono_ns = time.time_ns(), time.monotonic_ns()
                         try:
                             bbo = adapter.parse(json.loads(raw), recv_ts_ns, recv_mono_ns)
+                        except ReconnectRequired:
+                            tracker.counts[adapter.name]["sequence_gap"] += 1
+                            raise
                         except (InvalidMessage, KeyError, TypeError, ValueError):
                             tracker.counts[adapter.name]["invalid_messages"] += 1
                             continue

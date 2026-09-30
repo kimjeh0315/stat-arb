@@ -22,6 +22,7 @@ def test_quality_flags_gap_duplicate_and_cross() -> None:
 
 def test_grvt_snapshot_transition_is_not_a_gap() -> None:
     tracker = QualityTracker()
+    tracker.observe(quote(999, 998))
     tracker.observe(quote(0, 0))
     tracker.observe(quote(22896, 22895))
     assert tracker.counts["grvt"]["snapshots"] == 1

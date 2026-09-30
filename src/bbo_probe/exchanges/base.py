@@ -15,6 +15,10 @@ class InvalidMessage(ValueError):
     """Raised when a venue payload has invalid numeric market data."""
 
 
+class ReconnectRequired(InvalidMessage):
+    """Raised when local stream state can only be repaired by reconnecting."""
+
+
 def decimal_value(value: Any) -> Decimal:
     """Convert JSON numbers without passing through binary floating point."""
     try:

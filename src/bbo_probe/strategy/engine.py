@@ -210,6 +210,8 @@ def run_backtest(
         pair_results[pair_name] = {
             "samples": frame_counts[key],
             "trades": len(pair_trades),
+            "wins": sum(value > 0 for value in pair_net),
+            "losses": sum(value <= 0 for value in pair_net),
             "win_rate": (
                 0.0 if not pair_trades
                 else round(sum(value > 0 for value in pair_net) / len(pair_trades), 6)
@@ -229,6 +231,8 @@ def run_backtest(
         "events": {"processed": processed_events, "stale_pair_events": stale_events},
         "summary": {
             "trades": len(trades),
+            "wins": sum(value > 0 for value in net_values),
+            "losses": sum(value <= 0 for value in net_values),
             "win_rate": 0.0 if not trades else sum(value > 0 for value in net_values) / len(trades),
             "gross_bps": round(sum(trade.gross_bps for trade in trades), 6),
             "net_bps": round(sum(net_values), 6),

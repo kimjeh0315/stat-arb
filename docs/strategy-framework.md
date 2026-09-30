@@ -2,7 +2,9 @@
 
 ## 목표
 
-가설 코드는 `hypotheses/*.py`의 `decide()` 함수 하나로 제한한다. 데이터 로딩,
+각 가설은 `hypotheses/*.py`에 `HYPOTHESIS = PairHypothesis(...)` 형태로 기록한다.
+가설 파일은 ID·버전·검증 명제·적용 범위·window·파라미터만 선언하며, 공통
+진입/청산 규칙은 `strategy/pair_rules.py` 한 곳에서 관리한다. 데이터 로딩,
 거래소 심볼 변환, 비동기 BBO 정렬, rolling 평균·표준편차·z-score, 포지션,
 비용과 결과 집계는 프레임워크가 담당한다.
 
@@ -48,6 +50,11 @@ make strategy \
 receive timestamp가 제공된다. `Action.LONG_LEFT`, `SHORT_LEFT`, `CLOSE`,
 `HOLD` 중 하나를 반환한다.
 
+모든 결과 JSON에는 hypothesis ID, version, source path, source SHA-256과 실제
+파라미터에서 계산한 variant ID가 포함된다. 가설 파일을 변경하면 version도
+증가시켜야 하며, 과거 결과와 비교할 때는 ID뿐 아니라 source hash와 variant
+ID까지 확인한다.
+
 ## 구현된 BTC Bybit–GRVT pair 가설
 
 가설은 두 거래소의 BTC log-mid basis가 짧은 구간에서 정상적(stationary)이고,
@@ -64,11 +71,11 @@ receive timestamp가 제공된다. `Action.LONG_LEFT`, `SHORT_LEFT`, `CLOSE`,
 - 대상 제한: BTC의 Bybit–GRVT 조합만 거래
 
 15bp 필터는 기본 설정의 예상 왕복 비용 10bp와 추가 5bp 완충값이다. 실제
-수수료 설정이 달라지면 hypothesis의 `MIN_DEVIATION_BPS`도 함께 조정해야 한다.
+수수료 설정이 달라지면 hypothesis의 `parameters.min_deviation_bps`도 함께 조정해야 한다.
 이 임계값들은 사전 가설이며 수집 데이터에 맞춰 사후 최적화한 값이 아니다.
 
 `simple_mean_reversion.py`는 여러 자산과 venue pair를 빠르게 실험하기 위한
-범용 예제로 남겨 둔다.
+선언형 예제이고, `cross_venue_pair_grid.py`는 grid/sweep 실행용 가설이다.
 
 ## 현재 시뮬레이터의 범위
 

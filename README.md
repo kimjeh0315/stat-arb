@@ -21,8 +21,9 @@ make collect-top50 VENUES="bybit hyperliquid aster grvt" DURATION=300
 
 기본 실행 가설은 [btc_bybit_grvt_pair.py](hypotheses/btc_bybit_grvt_pair.py)의
 BTC Bybit–GRVT pair trade다. 새 아이디어는
-[simple_mean_reversion.py](hypotheses/simple_mean_reversion.py)를 복사해 짧은
-`decide()` 함수만 바꾸면 같은 프레임워크에서 실행할 수 있다.
+[simple_mean_reversion.py](hypotheses/simple_mean_reversion.py)를 복사해 선언형
+`HYPOTHESIS`의 ID·버전·명제·범위·파라미터를 바꾸면 같은 프레임워크에서
+추적 가능한 결과를 만들 수 있다.
 
 ```bash
 make strategy DATA=data/bbo.jsonl VENUES="bybit grvt" SYMBOLS="BTC"
@@ -31,7 +32,8 @@ make strategy DATA=data/bbo.jsonl VENUES="bybit grvt" SYMBOLS="BTC"
 시장 목록과 프레임워크 설명은 [markets.md](docs/markets.md),
 [strategy-framework.md](docs/strategy-framework.md)에 정리되어 있다.
 여러 자산과 거래소 쌍을 한 번에 비교하는 방법은
-[pair-grid.md](docs/pair-grid.md)에 정리되어 있다.
+[pair-grid.md](docs/pair-grid.md)에 정리되어 있다. 같은 문서에서 상위 1~50개
+자산 선택과 여러 z-score/괴리/청산 파라미터 sweep 방법도 설명한다.
 
 ## 코드 구조
 

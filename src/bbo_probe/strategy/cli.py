@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ..markets import MARKETS, VENUES
 from .engine import run_backtest
-from .loader import load_hypothesis
+from .loader import load_pair_hypothesis
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -24,10 +24,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
-    result = run_backtest(
-        args.data, args.venues, args.symbols, load_hypothesis(args.hypothesis),
-        window=args.window, freshness_ms=args.freshness_ms, fee_bps=args.fee_bps,
-    )
+    try:
+        hypothesis = load_pair_hypothesis(args.hypothesis)
+        result = run_backtest(
+            args.data, args.venues, args.symbols, hypothesis.specification.decide,
+            window=args.window, freshness_ms=args.freshness_ms, fee_bps=args.fee_bps,
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    result["hypothesis"] = hypothesis.manifest(window=args.window)
     rendered = json.dumps(result, indent=2, sort_keys=True)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

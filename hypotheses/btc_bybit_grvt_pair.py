@@ -1,38 +1,28 @@
-"""BTC cross-venue pair trade: fade temporary Bybit/GRVT basis shocks.
+"""BTC cross-venue pair hypothesis for Bybit and GRVT."""
 
-Research hypothesis
--------------------
-The log mid-price basis between Bybit and GRVT is locally stationary. A move
-that is both statistically unusual and large enough to clear expected trading
-costs should revert toward its rolling mean.
-
-The 15 bp minimum deviation assumes roughly 10 bp of round-trip cost in the
-default backtest (5 bp per fill on two equal-notional legs) plus a 5 bp buffer.
-"""
-
-from bbo_probe.strategy import Action, HypothesisInput
-from bbo_probe.strategy.pair_rules import PairTradingParameters, decide_pair
+from bbo_probe.strategy.pair_hypothesis import PairHypothesis
+from bbo_probe.strategy.pair_rules import PairTradingParameters
 
 
-ASSET = "BTC"
-VENUES = frozenset(("bybit", "grvt"))
-WARMUP_SAMPLES = 120
-ENTRY_Z = 2.5
-MIN_DEVIATION_BPS = 15.0
-EXIT_Z = 0.35
-STOP_Z = 4.5
-MAX_HOLD_SECONDS = 180.0
-PARAMETERS = PairTradingParameters(
-    warmup_samples=WARMUP_SAMPLES,
-    entry_z=ENTRY_Z,
-    min_deviation_bps=MIN_DEVIATION_BPS,
-    exit_z=EXIT_Z,
-    stop_z=STOP_Z,
-    max_hold_seconds=MAX_HOLD_SECONDS,
+HYPOTHESIS = PairHypothesis(
+    hypothesis_id="btc_bybit_grvt_pair",
+    version=1,
+    title="BTC Bybit-GRVT basis mean reversion",
+    thesis=(
+        "The BTC log-mid basis between Bybit and GRVT is locally stationary; "
+        "liquidity shocks exceeding costs revert toward their rolling mean."
+    ),
+    window=120,
+    assets=("BTC",),
+    venue_pairs=(("bybit", "grvt"),),
+    parameters=PairTradingParameters(
+        warmup_samples=120,
+        entry_z=2.5,
+        min_deviation_bps=15.0,
+        exit_z=0.35,
+        stop_z=4.5,
+        max_hold_seconds=180.0,
+    ),
 )
 
-
-def decide(x: HypothesisInput) -> Action:
-    if x.asset != ASSET or frozenset((x.left_venue, x.right_venue)) != VENUES:
-        return Action.HOLD
-    return decide_pair(x, PARAMETERS)
+decide = HYPOTHESIS.decide

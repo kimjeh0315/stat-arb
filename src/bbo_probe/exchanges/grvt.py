@@ -34,6 +34,8 @@ class GrvtAdapter(ExchangeAdapter):
         if message.get("stream") != "v1.book.s" or "feed" not in message:
             return None
         data = message["feed"]
+        if data.get("instrument") not in (None, self.instrument):
+            return None
         bids = data.get("bids", [])
         asks = data.get("asks", [])
         if not bids or not asks:

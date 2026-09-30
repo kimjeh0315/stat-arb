@@ -34,7 +34,7 @@ class HyperliquidAdapter(ExchangeAdapter):
         return {"method": "ping"}
 
     def parse(self, message: JsonObject, recv_ts_ns: int, recv_mono_ns: int) -> Optional[BBO]:
-        if message.get("channel") != "bbo":
+        if message.get("channel") != "bbo" or message.get("data", {}).get("coin") != self.instrument:
             return None
         data = message["data"]
         bid, ask = (price_level(level) for level in data["bbo"])

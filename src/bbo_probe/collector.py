@@ -31,24 +31,25 @@ class QualityTracker:
             self.event_ages_ms[bbo.exchange].append(age_ms)
             if age_ms < 0:
                 stats["negative_event_age"] += 1
-        last_recv = self.last_recv_mono_ns.get(bbo.exchange)
+        stream_key = f"{bbo.exchange}:{bbo.instrument}"
+        last_recv = self.last_recv_mono_ns.get(stream_key)
         if last_recv is not None:
             self.interarrival_ms[bbo.exchange].append((bbo.recv_mono_ns - last_recv) / 1_000_000)
-        self.last_recv_mono_ns[bbo.exchange] = bbo.recv_mono_ns
+        self.last_recv_mono_ns[stream_key] = bbo.recv_mono_ns
         if bbo.sequence is None:
             return
         # GRVT documents sequence 0 as snapshot; the following live sequence need not follow 0.
         if bbo.sequence == 0:
             stats["snapshots"] += 1
             return
-        previous = self.last_sequence.get(bbo.exchange)
+        previous = self.last_sequence.get(stream_key)
         if previous is not None and bbo.sequence == previous:
             stats["duplicate_sequence"] += 1
         elif previous is not None and bbo.sequence < previous:
             stats["sequence_regression"] += 1
         if bbo.prev_sequence is not None and previous is not None and bbo.prev_sequence != previous:
             stats["sequence_gap"] += 1
-        self.last_sequence[bbo.exchange] = bbo.sequence
+        self.last_sequence[stream_key] = bbo.sequence
 
     @staticmethod
     def _percentile(values: List[float], fraction: float) -> float:
@@ -119,7 +120,7 @@ async def collect_adapter(adapter: ExchangeAdapter, output: TextIO, tracker: Qua
                         if bbo is None:
                             continue
                         tracker.observe(bbo)
-                        latest[bbo.exchange] = bbo
+                        latest[f"{bbo.exchange}:{bbo.instrument}"] = bbo
                         output.write(json.dumps(bbo.to_dict(), separators=(",", ":")) + "\n")
                         output.flush()
                 finally:

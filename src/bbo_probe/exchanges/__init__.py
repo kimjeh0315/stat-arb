@@ -2,6 +2,7 @@
 
 from .aster import AsterAdapter
 from .base import ExchangeAdapter
+from .batch import BatchAdapter
 from .bybit import BybitAdapter
 from .grvt import GrvtAdapter
 from .hyperliquid import HyperliquidAdapter
@@ -16,6 +17,7 @@ ADAPTERS = {
 __all__ = [
     "ADAPTERS",
     "AsterAdapter",
+    "BatchAdapter",
     "BybitAdapter",
     "ExchangeAdapter",
     "GrvtAdapter",

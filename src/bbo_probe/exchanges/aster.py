@@ -31,6 +31,8 @@ class AsterAdapter(ExchangeAdapter):
         data = message.get("data", message)
         if not isinstance(data, dict) or data.get("e") not in (None, "bookTicker"):
             return None
+        if data.get("s") not in (None, self.instrument):
+            return None
         if not all(key in data for key in ("b", "B", "a", "A")):
             return None
         exchange_ms = data.get("T", data.get("E"))

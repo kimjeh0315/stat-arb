@@ -30,7 +30,7 @@ class BybitAdapter(ExchangeAdapter):
         return {"op": "ping"}
 
     def parse(self, message: JsonObject, recv_ts_ns: int, recv_mono_ns: int) -> Optional[BBO]:
-        if not str(message.get("topic", "")).startswith("orderbook.1."):
+        if message.get("topic") != f"orderbook.1.{self.instrument}":
             return None
         data = message.get("data")
         if not isinstance(data, dict) or not data.get("b") or not data.get("a"):

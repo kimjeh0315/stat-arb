@@ -41,7 +41,10 @@ def test_event_backtest_uses_bid_ask_and_costs(tmp_path) -> None:
         "recv_ts_ns": timestamp, "valid": True,
     }) + "\n" for venue, instrument, bid, ask, timestamp in rows), encoding="utf-8")
 
+    observed_frames = []
+
     def hypothesis(frame):
+        observed_frames.append(frame)
         if frame.position == 0 and frame.zscore >= 0.9:
             return Action.SHORT_LEFT
         if frame.position != 0:
@@ -56,3 +59,5 @@ def test_event_backtest_uses_bid_ask_and_costs(tmp_path) -> None:
     assert result["summary"]["gross_bps"] > 0
     assert result["trades"][0]["cost_bps"] == 10
     assert result["summary"]["net_bps"] < result["summary"]["gross_bps"]
+    assert observed_frames[-1].deviation_bps == observed_frames[-1].basis_bps - observed_frames[-1].basis_mean_bps
+    assert observed_frames[-1].basis_std_bps > 0

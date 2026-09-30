@@ -64,12 +64,13 @@ def _quote(record: Dict[str, Any]) -> Optional[Quote]:
     )
 
 
-def _zscore(values: Iterable[float]) -> float:
+def _rolling_statistics(values: Iterable[float]) -> Tuple[float, float, float]:
     sample = list(values)
-    if len(sample) < 2:
-        return 0.0
-    deviation = statistics.pstdev(sample)
-    return 0.0 if deviation == 0 else (sample[-1] - statistics.mean(sample)) / deviation
+    mean = statistics.mean(sample)
+    standard_deviation = statistics.pstdev(sample) if len(sample) >= 2 else 0.0
+    deviation = sample[-1] - mean
+    zscore = 0.0 if standard_deviation == 0 else deviation / standard_deviation
+    return mean, standard_deviation, zscore
 
 
 def _close_trade(
@@ -149,15 +150,19 @@ def run_backtest(
                 basis = math.log(left.mid / right.mid) * 10_000
                 history = histories[key]
                 history.append(basis)
+                basis_mean, basis_std, zscore = _rolling_statistics(history)
                 position = positions.get(key)
                 frame = HypothesisInput(
                     asset=asset, left_venue=left_venue, right_venue=right_venue,
-                    timestamp_ns=now_ns, basis_bps=basis, zscore=_zscore(history),
+                    timestamp_ns=now_ns, basis_bps=basis, zscore=zscore,
                     sample_count=len(history), position=0 if position is None else position.direction,
                     holding_seconds=(
                         0.0 if position is None
                         else (now_ns - position.entry_ts_ns) / 1_000_000_000
                     ),
+                    basis_mean_bps=basis_mean,
+                    basis_std_bps=basis_std,
+                    deviation_bps=basis - basis_mean,
                 )
                 action = decide(frame)
                 if not isinstance(action, Action):

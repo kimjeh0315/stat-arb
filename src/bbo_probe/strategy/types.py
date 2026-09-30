@@ -22,3 +22,6 @@ class HypothesisInput:
     sample_count: int
     position: int  # 1=long left, -1=short left, 0=flat
     holding_seconds: float
+    basis_mean_bps: float = 0.0
+    basis_std_bps: float = 0.0
+    deviation_bps: float = 0.0

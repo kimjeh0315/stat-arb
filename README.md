@@ -19,11 +19,13 @@ make collect VENUES="bybit aster" SYMBOLS="BTC ETH SOL" DURATION=300
 make collect-top50 VENUES="bybit hyperliquid aster grvt" DURATION=300
 ```
 
-가설은 [simple_mean_reversion.py](hypotheses/simple_mean_reversion.py)의 짧은
-`decide()` 함수만 수정하고 같은 프레임워크에서 실행한다.
+기본 실행 가설은 [btc_bybit_grvt_pair.py](hypotheses/btc_bybit_grvt_pair.py)의
+BTC Bybit–GRVT pair trade다. 새 아이디어는
+[simple_mean_reversion.py](hypotheses/simple_mean_reversion.py)를 복사해 짧은
+`decide()` 함수만 바꾸면 같은 프레임워크에서 실행할 수 있다.
 
 ```bash
-make strategy DATA=data/bbo.jsonl VENUES="bybit aster" SYMBOLS="BTC"
+make strategy DATA=data/bbo.jsonl VENUES="bybit grvt" SYMBOLS="BTC"
 ```
 
 시장 목록과 프레임워크 설명은 [markets.md](docs/markets.md),

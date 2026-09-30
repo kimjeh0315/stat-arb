@@ -30,6 +30,8 @@ make strategy DATA=data/bbo.jsonl VENUES="bybit grvt" SYMBOLS="BTC"
 
 시장 목록과 프레임워크 설명은 [markets.md](docs/markets.md),
 [strategy-framework.md](docs/strategy-framework.md)에 정리되어 있다.
+여러 자산과 거래소 쌍을 한 번에 비교하는 방법은
+[pair-grid.md](docs/pair-grid.md)에 정리되어 있다.
 
 ## 코드 구조
 

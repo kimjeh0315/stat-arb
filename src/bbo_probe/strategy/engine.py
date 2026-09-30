@@ -73,6 +73,17 @@ def _rolling_statistics(values: Iterable[float]) -> Tuple[float, float, float]:
     return mean, standard_deviation, zscore
 
 
+def _max_drawdown(values: Iterable[float]) -> float:
+    cumulative = 0.0
+    peak = 0.0
+    drawdown = 0.0
+    for value in values:
+        cumulative += value
+        peak = max(peak, cumulative)
+        drawdown = max(drawdown, peak - cumulative)
+    return drawdown
+
+
 def _close_trade(
     key: Tuple[str, str, str], position: Position, left: Quote, right: Quote,
     now_ns: int, fee_bps: float, reason: str,
@@ -118,6 +129,7 @@ def run_backtest(
     )
     positions: Dict[Tuple[str, str, str], Position] = {}
     last_frames: Dict[Tuple[str, str, str], Tuple[Quote, Quote]] = {}
+    frame_counts: Dict[Tuple[str, str, str], int] = defaultdict(int)
     trades: List[Trade] = []
     stale_events = 0
     processed_events = 0
@@ -147,6 +159,7 @@ def run_backtest(
                     continue
 
                 key = (asset, left_venue, right_venue)
+                frame_counts[key] += 1
                 basis = math.log(left.mid / right.mid) * 10_000
                 history = histories[key]
                 history.append(basis)
@@ -185,9 +198,29 @@ def run_backtest(
         trades.append(_close_trade(key, position, left, right, now_ns, fee_bps, "end_of_data"))
 
     net_values = [trade.net_bps for trade in trades]
-    grouped: Dict[str, List[float]] = defaultdict(list)
+    grouped: Dict[Tuple[str, str, str], List[Trade]] = defaultdict(list)
     for trade in trades:
-        grouped[f"{trade.asset}:{trade.left_venue}-{trade.right_venue}"].append(trade.net_bps)
+        grouped[(trade.asset, trade.left_venue, trade.right_venue)].append(trade)
+    pair_results: Dict[str, Dict[str, Any]] = {}
+    for key in sorted(frame_counts):
+        pair_trades = grouped[key]
+        pair_net = [trade.net_bps for trade in pair_trades]
+        pair_gross = [trade.gross_bps for trade in pair_trades]
+        pair_name = f"{key[0]}:{key[1]}-{key[2]}"
+        pair_results[pair_name] = {
+            "samples": frame_counts[key],
+            "trades": len(pair_trades),
+            "win_rate": (
+                0.0 if not pair_trades
+                else round(sum(value > 0 for value in pair_net) / len(pair_trades), 6)
+            ),
+            "gross_bps": round(sum(pair_gross), 6),
+            "net_bps": round(sum(pair_net), 6),
+            "average_net_bps": (
+                0.0 if not pair_trades else round(statistics.mean(pair_net), 6)
+            ),
+            "max_drawdown_bps": round(_max_drawdown(pair_net), 6),
+        }
     return {
         "configuration": {
             "data": str(data_path), "venues": list(venues), "assets": list(assets),
@@ -201,9 +234,6 @@ def run_backtest(
             "net_bps": round(sum(net_values), 6),
             "average_net_bps": 0.0 if not trades else round(statistics.mean(net_values), 6),
         },
-        "pairs": {
-            pair: {"trades": len(values), "net_bps": round(sum(values), 6)}
-            for pair, values in sorted(grouped.items())
-        },
+        "pairs": pair_results,
         "trades": [asdict(trade) for trade in trades],
     }

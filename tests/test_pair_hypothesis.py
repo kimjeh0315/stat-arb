@@ -1,7 +1,10 @@
 from pathlib import Path
 
+import pytest
+
 from bbo_probe.strategy import Action, HypothesisInput
 from bbo_probe.strategy.loader import load_hypothesis
+from bbo_probe.strategy.pair_rules import PairTradingParameters
 
 
 DECIDE = load_hypothesis(Path("hypotheses/btc_bybit_grvt_pair.py"))
@@ -50,3 +53,10 @@ def test_pair_hypothesis_has_stop_and_time_exit() -> None:
     assert DECIDE(frame(position=-1, zscore=4.5)) == Action.CLOSE
     assert DECIDE(frame(position=1, zscore=-4.5)) == Action.CLOSE
     assert DECIDE(frame(position=-1, zscore=1.0, holding_seconds=180.0)) == Action.CLOSE
+
+
+def test_pair_parameters_reject_inconsistent_thresholds() -> None:
+    with pytest.raises(ValueError):
+        PairTradingParameters(entry_z=5.0, stop_z=4.5)
+    with pytest.raises(ValueError):
+        PairTradingParameters(warmup_samples=1)

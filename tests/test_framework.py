@@ -59,5 +59,9 @@ def test_event_backtest_uses_bid_ask_and_costs(tmp_path) -> None:
     assert result["summary"]["gross_bps"] > 0
     assert result["trades"][0]["cost_bps"] == 10
     assert result["summary"]["net_bps"] < result["summary"]["gross_bps"]
+    pair = result["pairs"]["BTC:bybit-aster"]
+    assert pair["samples"] == 3
+    assert pair["trades"] == 1
+    assert pair["max_drawdown_bps"] >= 0
     assert observed_frames[-1].deviation_bps == observed_frames[-1].basis_bps - observed_frames[-1].basis_mean_bps
     assert observed_frames[-1].basis_std_bps > 0

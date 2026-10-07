@@ -1,0 +1,9 @@
+{
+  "앵커": ["BTC", "ETH", "SOL"],
+  "결제·화폐형": ["XRP", "ZEC", "HBAR", "LTC", "XLM", "BCH", "ZEN"],
+  "L1·L2": ["NEAR", "ADA", "SUI", "AVAX", "DOT", "ICP", "XPL", "MON", "ARB", "OP", "STRK", "POL"],
+  "DeFi": ["ENA", "ONDO", "AAVE", "WLFI", "PENDLE", "LDO", "MORPHO"],
+  "거래소·DEX 토큰": ["HYPE", "UNI", "BNB", "LIT", "ASTER", "JUP", "CRV"],
+  "AI·DePIN": ["WLD", "TAO", "FIL", "VIRTUAL", "KAITO", "GRASS", "RENDER"],
+  "밈": ["DOGE", "PEPE", "TRUMP", "PENGU", "FARTCOIN", "BONK", "WIF"]
+}

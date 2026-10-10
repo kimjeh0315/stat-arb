@@ -1,0 +1,30 @@
+[Unit]
+Description=Quant native Parquet archiver and S3 uploader
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=quant
+Group=quant
+WorkingDirectory=/opt/quant
+Environment=QUANT_SPOOL_DIR=/var/lib/quant-collector
+EnvironmentFile=/etc/quant/collector.env
+ExecStart=/opt/quant/bin/quant-collector --config /opt/quant/config/collector.json archive
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=180
+KillSignal=SIGTERM
+UMask=0077
+StateDirectory=quant-collector
+Nice=10
+CPUWeight=25
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/quant-collector
+
+[Install]
+WantedBy=multi-user.target

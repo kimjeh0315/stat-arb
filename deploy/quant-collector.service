@@ -1,6 +1,6 @@
 [Unit]
-Description=Quant public perpetual market collector
-Wants=network-online.target
+Description=Quant native public perpetual market collector
+Wants=network-online.target quant-archiver.service
 After=network-online.target
 StartLimitIntervalSec=0
 
@@ -9,11 +9,9 @@ Type=simple
 User=quant
 Group=quant
 WorkingDirectory=/opt/quant
-Environment=PYTHONUNBUFFERED=1
-Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=QUANT_SPOOL_DIR=/var/lib/quant-collector
 EnvironmentFile=/etc/quant/collector.env
-ExecStart=/opt/quant/.venv/bin/quant-collector --config /opt/quant/config/collector.json run
+ExecStart=/opt/quant/bin/quant-collector --config /opt/quant/config/collector.json collect
 Restart=on-failure
 RestartSec=30
 TimeoutStopSec=120

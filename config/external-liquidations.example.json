@@ -1,9 +1,0 @@
-[
-  {
-    "exchange": "hyperliquid",
-    "url_env": "HL_LIQUIDATION_WS_URL",
-    "token_env": "HL_LIQUIDATION_TOKEN",
-    "coverage_type": "external_provider_defined",
-    "subscribe": {"type": "liquidations"}
-  }
-]

@@ -19,13 +19,15 @@ target/release/quant-collector --config config/collector.json archive
 
 `collect --duration 30`은 제한 시간 수집, `flush`는 완료된 저널 변환·업로드, `verify`는 로컬 불변식 검증입니다. `import-legacy FILE.ready`로 이전 JSONL 저널을 복사 변환하고, `replay FILE.wal.ready --output analysis.parquet`로 정규화 이벤트에서 분석을 재생성합니다. 이전 저널 원본은 자동 삭제하지 않습니다. 실행 중인 `.open` 파일은 archiver가 읽지 않습니다.
 
-Lightsail에는 Linux용으로 빌드한 바이너리를 `/opt/quant/bin/quant-collector`에 설치합니다. 전환 전에 기존 Python 서비스를 중지하고 `deploy/`의 수집·저장 서비스 두 개를 설치합니다. macOS 빌드 결과는 Linux에서 실행할 수 없습니다.
+Lightsail에는 Linux용으로 빌드한 바이너리를 `/opt/quant/bin/quant-collector`에 설치하고, `deploy/`의 수집·저장 서비스 두 개를 사용합니다. macOS 빌드 결과는 Linux에서 실행할 수 없습니다.
 
 ## 계층 구조
 
 ```text
 config/                 자산 범위 · 실행 설정
 native/src/
+  bin/validate-analysis.rs  독립 데이터 검증 명령
+  validation/           S3·로컬 입력 → 1초 품질 검사 → 보고서·사용 가능 마스크
   main.rs               명령 · 신호 처리 · 재생 및 검증
   service.rs            연결별 작업 · 재연결 · 수신 큐 · 종료 관리
   exchanges.rs          거래소별 상품 탐색 · 구독 · 메시지 및 REST 해석
@@ -36,7 +38,7 @@ native/src/
   schema.rs             Arrow/Parquet 스키마
   storage.rs            묶음 변환 · gzip · Parquet · S3 검증 및 재시도
 deploy/                 수집/저장 systemd 서비스 · 환경 변수 · S3 권한
-src/quant_collector/    이전 Python 구현 (Rust 실행에서 사용하지 않음)
+scripts/                S3 샘플 다운로드 · 용량 집계 · 데이터 검증 실행
 ```
 
 수집 프로세스: **거래소 → 정규화·오더북 → 1초 분석 → 바이너리 저널**.

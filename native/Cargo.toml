@@ -2,6 +2,7 @@
 name = "quant-collector"
 version = "0.2.0"
 edition = "2024"
+default-run = "quant-collector"
 [dependencies]
 anyhow = "1"
 arrow = "59"

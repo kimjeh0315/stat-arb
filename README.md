@@ -49,3 +49,13 @@ scripts/                S3 샘플 다운로드 · 용량 집계 · 데이터 검
 Parquet 경로와 컬럼은 기존 형식을 유지하지만 Rust 이벤트 ID 규칙과 숫자 처리에는 `schema_version=2`를 사용합니다. 18자리보다 긴 입력 정밀도는 거절하고, 곱셈·나눗셈 결과는 18자리에서 0 방향으로 절삭합니다. 완전한 청산 건수나 재시작 전체에 걸친 전역 중복 제거를 보장하지 않습니다.
 
 기본 저장 묶음은 완료 저널 64MiB 또는 가장 오래된 완료 저널의 대기 시간 120초입니다. 이는 S3 파일 생성 주기이며, 수신 주기나 1초 분석 주기와 다릅니다. CPU 압축 작업은 저장 프로세스에서 한 번에 하나씩 실행합니다. 실제 Lightsail 처리 한계는 전체 종목 부하 검증 후 확정해야 합니다.
+
+## Subsecond z-score 연구
+
+`zscore`는 S3의 **normalized `book_state_20` 원본 호가**를 읽는 독립 Rust CLI입니다. UTC 기간과 밀리초 샘플링 간격을 지정하고 window·진입/청산 z를 한 번에 비교합니다. 1초 분석 데이터는 사용하지 않습니다. 캐시와 결과 JSON, 실행 예시 및 체결 모델의 범위는 [사용 안내](scripts/zscore.md)를 참고하세요.
+
+```bash
+cargo build --release --locked --bin zscore
+target/release/zscore --config config/zscore-oct20-30.json
+# 또는 ./scripts/run-zscore-oct20-30.sh
+```

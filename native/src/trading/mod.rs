@@ -1,6 +1,7 @@
 pub mod engine;
 mod feed;
 mod session;
+mod upload;
 use anyhow::{Result,Context,ensure};
 use clap::Parser;
 use serde_json::json;
@@ -10,6 +11,8 @@ use tokio::sync::{mpsc,watch};
 pub struct Cli {
  #[arg(long,default_value="config/trader-shadow.json")] config:PathBuf,
  #[arg(long)] check:bool,
+ /// Upload complete JSONL snapshots to S3; never starts market feeds.
+ #[arg(long)] upload_logs:bool,
  /// Offline NDJSON quotes; never calls private endpoints or submits orders.
  #[arg(long)] replay:Option<PathBuf>,
 }
@@ -17,6 +20,7 @@ fn emit(w:&mut std::fs::File,v:&serde_json::Value)->Result<()> {serde_json::to_w
 pub async fn run()->Result<()> {
  let args=Cli::parse();let config:engine::Config=serde_json::from_slice(&std::fs::read(&args.config)?)?;config.validate()?;
  let base=args.config.parent().unwrap_or(std::path::Path::new("."));
+ if args.upload_logs {return upload::run(&base.join(&config.output_dir), &base.join(&config.collector_config)).await;}
  if args.check {println!("{}",json!({"mode":"shadow","orders_enabled":false,"session_today":session::bounds(chrono::Utc::now())?,"config_valid":true,"target_per_leg":10.0}));return Ok(());}
  let dir=base.join(&config.output_dir);std::fs::create_dir_all(&dir)?;
  let mut engine=engine::Engine::new(config.clone())?;
@@ -45,7 +49,7 @@ pub async fn run()->Result<()> {
  // A crash requires operator review; it is never silently restarted as a fresh account.
  let path=dir.join(format!("{}-shadow.jsonl",now.date_naive()));
  let mut output=std::fs::OpenOptions::new().write(true).create_new(true).open(path).context("session already exists or output unavailable; inspect previous session before restart")?;
- emit(&mut output,&json!({"type":"session_start","mode":"shadow","orders_enabled":false,"start":start,"end":end,"funding_included":false,"size_filters_complete":false,"fee_source":"research_config_not_account_verified"}))?;
+ emit(&mut output,&json!({"type":"session_start","schema_version":1,"config":serde_json::from_slice::<serde_json::Value>(&std::fs::read(&args.config)?)?,"mode":"shadow","orders_enabled":false,"start":start,"end":end,"funding_included":false,"size_filters_complete":false,"fee_source":"research_config_not_account_verified"}))?;
  output.sync_all()?;
  let mut collector=crate::model::Config::load(&base.join(&config.collector_config))?;
  collector.bbo_only=true;collector.exchanges=config.venues.keys().cloned().collect();

@@ -1,0 +1,23 @@
+[Unit]
+Description=Upload shadow logs to S3 (NO REAL ORDERS)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=quant
+Group=quant
+WorkingDirectory=/opt/quant
+Environment=RUST_LOG=info
+EnvironmentFile=/etc/quant/collector.env
+EnvironmentFile=/etc/quant/bbo.env
+Environment=QUANT_SHADOW_S3_PREFIX=quant/shadow-v1
+ExecStart=/opt/quant/bin/quant-trader --config /opt/quant/config/trader-shadow.json --upload-logs
+TimeoutStartSec=120
+UMask=0077
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/quant-trader-shadow

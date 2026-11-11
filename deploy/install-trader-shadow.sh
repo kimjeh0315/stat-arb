@@ -16,3 +16,8 @@ systemd-analyze verify /etc/systemd/system/quant-trader-shadow.service /etc/syst
 systemctl daemon-reload
 systemctl enable --now quant-trader-shadow.timer
 systemctl list-timers quant-trader-shadow.timer --no-pager
+
+install -m 0644 "$build_dir/deploy/quant-trader-shadow-upload.service" /etc/systemd/system/
+install -m 0644 "$build_dir/deploy/quant-trader-shadow-upload.timer" /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now quant-trader-shadow-upload.timer

@@ -67,3 +67,9 @@ target/release/quant-trader --config config/trader-shadow.json
 실거래 전에 필요한 작업: 별도 주문 어댑터 및 서명 테스트, 계정별 수수료/정밀도/최소금액/잔고 검증, 실제 체결 대조와 중복방지, 한쪽 체결 실패 복구, 재시작 복구, 펀딩/통화 처리 정책, 사용자 직접 활성화.
 
 공식 근거: [NYSE 시간·휴장일](https://www.nyse.com/markets/hours-calendars), [Hyperliquid 주문 최소금액](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/error-responses).
+
+## Shadow S3 logs
+
+`quant-trader --upload-logs` uploads complete JSONL lines as gzip to `quant/shadow-v1/mode=shadow/date=YYYY-MM-DD/YYYY-MM-DD-shadow.jsonl.gz` in the existing collector bucket. The independent upload timer retries every 60 seconds; unchanged snapshots are skipped by SHA-256. The object is replaced with the latest full snapshot, so read each date once (do not concatenate object versions). Local originals are retained; unfinished last lines are deferred. A 64 MiB per-file bound fails explicitly. S3 versioning, if enabled, retains previous snapshots.
+
+Records: session_start (configuration and assumptions), signal (Z, mean, deviation, bid/ask/size and timestamps, estimated costs), shadow_entry, shadow_exit (PnL excluding funding), unresolved_shadow_exit, metrics (cumulative rejection counts), session_end. Rejection counts are evaluations, not unique opportunities. Replays are excluded. Deployment checks use a separate `*-deployment-check.jsonl.gz` name and are not trading results. An absent session_end indicates incomplete execution; a snapshot is not proof of a completed session. Infrastructure errors remain in journalctl; check the upload service for delivery errors.

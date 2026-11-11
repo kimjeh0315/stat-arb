@@ -22,7 +22,7 @@ impl Config {
  pub fn validate(&self)->Result<()> {
   ensure!(self.mode=="shadow","only shadow mode is implemented; no real orders can be sent");
   ensure!(self.venues.len()==4 && ["bybit","aster","grvt","hyperliquid"].iter().all(|v|self.venues.contains_key(*v)),"four configured venues required");
-  ensure!(self.minimum_samples>=30 && self.minimum_samples<=self.window_seconds && self.window_seconds<3600,"invalid rolling window");
+  ensure!(self.minimum_samples>=30 && self.minimum_samples<=self.window_seconds && self.window_seconds<=3600,"invalid rolling window");
   ensure!(self.entry_z.is_finite() && self.exit_z.is_finite() && self.entry_z>self.exit_z && self.exit_z>=0.,"invalid Z thresholds");
   ensure!(self.entry_fraction.is_finite() && self.entry_fraction>0. && self.entry_fraction<=0.2,"entry fraction must be <=20%");
   ensure!(self.loss_limit_fraction.is_finite() && self.loss_limit_fraction>0. && self.loss_limit_fraction<=0.1,"loss limit must be <=10%");
@@ -125,7 +125,7 @@ impl Engine {
     out.push(json!({"type":"unresolved_shadow_exit","reason":"stale_or_disconnected","position":p}));self.positions.push(p);
    }
   }
-  if self.halted || !all_marked || t<start || t>=end-self.config.stop_new_entries_before_end_seconds*1000 {return out;}
+  if self.halted || !all_marked || t<start-super::session::WARMUP_MS || t>=end-self.config.stop_new_entries_before_end_seconds*1000 {return out;}
   let quotes:Vec<_>=self.quotes.values().cloned().collect();
   let mut candidates=vec![];
   for i in 0..quotes.len(){for j in i+1..quotes.len(){
@@ -138,6 +138,7 @@ impl Engine {
    let h=self.history.entry(key).or_default();let stats=h.stats(sample_time,&self.config);
    // Score BEFORE adding current observation: no in-sample/look-ahead signal.
    h.samples.push_back((sample_time,spread));
+   if t<start {continue;} // Pre-open observations warm the baseline, never create signals or entries.
    let Some((mean,sd))=stats else {self.reject("warmup");continue;};
    let z=(spread-mean)/sd;if z.abs()<self.config.entry_z {continue;}
    let d=z.signum();let va=&self.config.venues[&a.venue];let vb=&self.config.venues[&b.venue];
@@ -187,6 +188,19 @@ fn common_quantity(raw:f64,a:f64,b:f64)->Option<f64>{
  fn warm()->Engine {let mut c=cfg();c.window_seconds=30;c.minimum_samples=30;let mut e=Engine::new(c).unwrap();for n in 0..30 {let t=n*1000;e.quote(quote("aster",t,10.+if n%2==0 {0.01}else{-0.01}));e.quote(quote("bybit",t,10.));assert!(e.tick(t,0,3_600_000).is_empty());}e}
  #[test] fn entry_direction_and_realistic_exit(){let mut e=warm();e.quote(quote("aster",30000,11.));e.quote(quote("bybit",30000,10.));let rows=e.tick(30000,0,3_600_000);assert_eq!(rows.len(),2);assert_eq!(rows[0]["type"],"signal");assert_eq!(rows[1]["type"],"shadow_entry");assert_eq!(e.positions[0].direction,1.);assert!(e.positions[0].a_entry*e.positions[0].qty<=10.);e.quote(quote("aster",31000,10.));e.quote(quote("bybit",31000,10.));let rows=e.tick(31000,0,3_600_000);assert_eq!(rows[0]["type"],"shadow_exit");assert!(e.positions.is_empty());assert!(e.realized.values().sum::<f64>()>0.);}
  #[test] fn mismatched_currency_and_stale_quotes_cannot_enter(){let mut e=warm();let mut a=quote("aster",30000,11.);a.quote="USDC".into();e.quote(a);e.quote(quote("bybit",30000,10.));assert!(e.tick(30000,0,3_600_000).is_empty());assert!(e.positions.is_empty());let mut e=warm();e.quote(quote("aster",30000,11.));assert!(e.tick(33000,0,3_600_000).is_empty());}
+ #[test] fn hour_of_preopen_history_allows_entry_only_at_open(){
+ let mut c=cfg();c.window_seconds=3600;c.minimum_samples=3600;
+ let mut e=Engine::new(c).unwrap();let start=7_200_000;let end=start+3_600_000;
+ e.quote(quote("aster",start-3_601_000,11.));e.quote(quote("bybit",start-3_601_000,10.));
+ assert!(e.tick(start-3_601_000,start,end).is_empty());assert!(e.history.is_empty());
+ for n in 0..3600 {let t=start-3_600_000+n*1000;
+ e.quote(quote("aster",t,if n==3599 {11.}else{10.+if n%2==0 {0.01}else{-0.01}}));
+ e.quote(quote("bybit",t,10.));assert!(e.tick(t,start,end).is_empty());assert!(e.positions.is_empty());}
+ assert_eq!(e.history.values().next().unwrap().samples.len(),3600);
+ e.quote(quote("aster",start,11.));e.quote(quote("bybit",start,10.));
+ let rows=e.tick(start,start,end);assert!(rows.iter().any(|r|r["type"]=="shadow_entry"));
+ assert_eq!(e.positions[0].opened_ms,start);
+ }
  #[test] fn session_deadline_prevents_new_risk(){let mut e=warm();e.quote(quote("aster",30000,11.));e.quote(quote("bybit",30000,10.));assert!(e.tick(30000,0,330000).is_empty());}
  #[test] fn disconnect_does_not_invent_a_close(){let mut e=warm();e.quote(quote("aster",30000,11.));e.quote(quote("bybit",30000,10.));e.tick(30000,0,3_600_000);e.disconnect(&["aster:COIN".into()]);let rows=e.tick(31000,0,3_600_000);assert_eq!(rows[0]["type"],"unresolved_shadow_exit");assert!(e.halted);assert_eq!(e.positions.len(),1);}
 }

@@ -22,7 +22,7 @@ Z가 양수이면 A 매도/B 매수, 음수이면 A 매수/B 매도. 가격의 �
 | 항목 | 설정 |
 |---|---|
 | 대상 | Bybit, Aster, GRVT, Hyperliquid / 기존 수집 유니버스 |
-| 기준선 | 직전 900초, 최소 900개 유효한 1초 관측; 현재 관측은 평가 후 추가 |
+| 기준선 | 직전 3600초, 최소 3600개 유효한 1초 관측; 현재 관측은 평가 후 추가 |
 | 진입 | 절대 Z >= 3, 예상 회귀 폭이 매수/매도 스프레드·왕복 수수료·슬리피지·추가 2bp를 초과 |
 | 청산 | 진입 방향의 Z가 0.5 이하로 회귀, 시간 한도, 세션 종료, 손실 한도 |
 | 데이터 | 수신 나이 <=1.5초, 거래소 시각 나이 <=2초, 양측 시각 차이 <=0.5초 |
@@ -37,8 +37,8 @@ Z가 양수이면 A 매도/B 매수, 음수이면 A 매수/B 매도. 가격의 �
 - 거래소당 동시에 한 페어의 한쪽만, 동일 자산 중복 금지, 전체 최대 2페어. 총 진입 명목금액 최대 40달러. 수익이 나도 자동으로 규모를 늘리지 않고, 손실 시 축소한다.
 - 초기 총자금의 10%인 20달러가 손실 중단 기준이다. 실현손익과 신선한 호가로 평가한 미실현 청산손익을 합한다. 실제 체결 실패·급변동에서는 정확한 20달러 손실 상한을 보장할 수 없다.
 - Hyperliquid 최소 신규 주문은 10달러이므로 목표 10달러가 최소금액과 같다. 수량을 반올림해 한도를 넘기지 않으므로 정확히 맞추지 못하면 제외될 수 있다. 양쪽 최소수량/수량단위/잔량을 만족하지 못하면 확대하지 않고 제외한다.
-- NYSE 정규 개장 09:30–10:30 America/New_York만 전략 실행. 한국시간 서머타임 22:30–23:30, 표준시 23:30–다음 날 00:30.
-- 처음 15분은 세션 안에서 기준선을 만든다. 개장 전 실행 없이 시작하므로 개장 직후 바로 진입하지 않는다.
+- NYSE 정규 개장 09:30–10:30 America/New_York만 모의 거래 허용. 한국시간 서머타임 22:30–23:30, 표준시 23:30–다음 날 00:30.
+- 개장 65분 전 연결을 시작하고, 개장 60분 전부터 기준선을 축적한다. 개장 전에는 신호와 가상 진입을 생성하지 않는다. 직전 60분의 유효한 1초 관측이 부족하면 해당 페어는 진입을 보류한다. 표준시 한국시간 22:25 연결, 22:30 기준 축적, 23:30 모의 거래 시작이다.
 - 마지막 5분 신규 진입 금지, 종료 30초 전 청산 시도. 최대 보유 1시간보다 세션 종료가 우선한다.
 - 주말·NYSE 휴장일 제외. 현재 캘린더는 검증된 2026년에 한정하고 이후 연도는 실행을 거절한다. 임시 휴장 공지는 별도 반영이 필요하다.
 
@@ -62,7 +62,7 @@ target/release/quant-trader --config config/trader-shadow.json --check
 target/release/quant-trader --config config/trader-shadow.json
 ```
 
-서버 출력 디렉터리는 `/var/lib/quant-trader-shadow`. timer는 뉴욕 09:30에 shadow service를 시작한다. `Persistent=false`여서 서버가 꺼져 있던 세션을 뒤늦게 따라 실행하지 않는다. Rust 코드도 실행 시각과 휴장일을 검증한다.
+서버 출력 디렉터리는 `/var/lib/quant-trader-shadow`. timer는 뉴욕 08:25에 shadow service를 시작한다. `Persistent=false`여서 서버가 꺼져 있던 세션을 뒤늦게 따라 실행하지 않는다. Rust 코드도 실행 시각과 휴장일을 검증한다.
 
 실거래 전에 필요한 작업: 별도 주문 어댑터 및 서명 테스트, 계정별 수수료/정밀도/최소금액/잔고 검증, 실제 체결 대조와 중복방지, 한쪽 체결 실패 복구, 재시작 복구, 펀딩/통화 처리 정책, 사용자 직접 활성화.
 
@@ -73,3 +73,5 @@ target/release/quant-trader --config config/trader-shadow.json
 `quant-trader --upload-logs` uploads complete JSONL lines as gzip to `quant/shadow-v1/mode=shadow/date=YYYY-MM-DD/YYYY-MM-DD-shadow.jsonl.gz` in the existing collector bucket. The independent upload timer retries every 60 seconds; unchanged snapshots are skipped by SHA-256. The object is replaced with the latest full snapshot, so read each date once (do not concatenate object versions). Local originals are retained; unfinished last lines are deferred. A 64 MiB per-file bound fails explicitly. S3 versioning, if enabled, retains previous snapshots.
 
 Records: session_start (configuration and assumptions), signal (Z, mean, deviation, bid/ask/size and timestamps, estimated costs), shadow_entry, shadow_exit (PnL excluding funding), unresolved_shadow_exit, metrics (cumulative rejection counts), session_end. Rejection counts are evaluations, not unique opportunities. Replays are excluded. Deployment checks use a separate `*-deployment-check.jsonl.gz` name and are not trading results. An absent session_end indicates incomplete execution; a snapshot is not proof of a completed session. Infrastructure errors remain in journalctl; check the upload service for delivery errors.
+
+개장 전 데이터를 포함한 과거 60분 rolling 기준이다. 원문에서 개장 후 한 시간 전체를 사후 집계한 기준과 다르며 미래 데이터는 사용하지 않는다. metrics의 phase는 connecting / warmup / trading을 구분한다.

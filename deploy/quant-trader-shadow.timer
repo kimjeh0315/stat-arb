@@ -2,7 +2,7 @@
 Description=NYSE opening-hour shadow session; Rust validates holidays
 
 [Timer]
-OnCalendar=Mon..Fri *-*-* 09:30:00 America/New_York
+OnCalendar=Mon..Fri *-*-* 08:25:00 America/New_York
 AccuracySec=1s
 RandomizedDelaySec=0
 Persistent=false

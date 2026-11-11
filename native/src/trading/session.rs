@@ -11,6 +11,14 @@ pub fn bounds(now: DateTime<Utc>) -> Result<Option<(i64,i64)>> {
     let start=d.and_hms_opt(if dst {13}else{14},30,0).unwrap().and_utc().timestamp_millis();
     Ok(Some((start,start+3_600_000)))
 }
+pub const WARMUP_MS:i64=3_600_000;
+pub const CONNECTION_LEAD_MS:i64=3_900_000;
+pub fn phase(t:i64,start:i64)->&'static str {
+ if t<start-WARMUP_MS {"connecting"} else if t<start {"warmup"} else {"trading"}
+}
+pub fn can_run(now:DateTime<Utc>)->Result<bool> {
+ Ok(bounds(now)?.is_some_and(|(a,b)|(a-CONNECTION_LEAD_MS..b).contains(&now.timestamp_millis())))
+}
 pub fn is_open(now: DateTime<Utc>) -> Result<bool> {
     Ok(bounds(now)?.is_some_and(|(a,b)| (a..b).contains(&now.timestamp_millis())))
 }
@@ -22,6 +30,18 @@ pub fn is_open(now: DateTime<Utc>) -> Result<bool> {
    assert!(!is_open(t("2026-11-02T13:30:00Z")).unwrap());
    assert!(is_open(t("2026-11-02T14:30:00Z")).unwrap());
    assert!(!is_open(t("2026-11-02T15:30:00Z")).unwrap());
+ }
+ #[test] fn preparation_boundaries(){
+ assert!(!can_run(t("2026-11-11T13:24:59Z")).unwrap());
+ assert!(can_run(t("2026-11-11T13:25:00Z")).unwrap());
+ assert!(!is_open(t("2026-11-11T14:29:59Z")).unwrap());
+ assert!(!can_run(t("2026-11-11T15:30:00Z")).unwrap());
+ assert!(can_run(t("2026-10-30T12:25:00Z")).unwrap());
+ assert!(!can_run(t("2026-11-26T13:25:00Z")).unwrap());
+ let (s,_)=bounds(t("2026-11-11T14:30:00Z")).unwrap().unwrap();
+ assert_eq!(phase(s-WARMUP_MS-1,s),"connecting");
+ assert_eq!(phase(s-WARMUP_MS,s),"warmup");
+ assert_eq!(phase(s,s),"trading");
  }
  #[test] fn holidays_and_calendar_expiry(){
    assert!(!is_open(t("2026-11-26T14:30:00Z")).unwrap());

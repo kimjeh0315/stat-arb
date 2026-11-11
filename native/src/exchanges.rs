@@ -138,9 +138,7 @@ pub async fn discover(ex: &str, c: &Config, u: &Universe, h: &Http) -> Result<Ve
             let (_, v) = h
                 .call("https://fapi.asterdex.com/fapi/v1/exchangeInfo", None)
                 .await?;
-            let (_, f) = h
-                .call("https://fapi.asterdex.com/fapi/v1/fundingInfo", None)
-                .await?;
+            let f = if c.bbo_only { Value::Null } else { h.call("https://fapi.asterdex.com/fapi/v1/fundingInfo", None).await?.1 };
             for r in v["symbols"].as_array().context("Aster symbols missing")? {
                 if r["status"] != "TRADING" || r["contractType"] != "PERPETUAL" {
                     continue;
@@ -231,6 +229,7 @@ pub async fn discover(ex: &str, c: &Config, u: &Universe, h: &Http) -> Result<Ve
     Ok(out)
 }
 pub struct Parser {
+    pub bbo_only: bool,
     pub items: HashMap<String, Instrument>,
     pub books: HashMap<String, Book>,
     pub session: String,
@@ -240,6 +239,7 @@ pub struct Parser {
 impl Parser {
     pub fn new(items: &[Instrument], c: &Config) -> Self {
         Self {
+            bbo_only: c.bbo_only,
             items: items
                 .iter()
                 .map(|i| (i.native_symbol.clone(), i.clone()))
@@ -479,6 +479,7 @@ impl Parser {
         Ok(())
     }
     pub fn parse(&mut self, r: &Raw, v: &Value) -> Result<Vec<Event>> {
+        if self.bbo_only { return crate::bbo::parse(self, r, v); }
         let mut out = Vec::new();
         match r.exchange.as_str() {
             "bybit" => {

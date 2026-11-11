@@ -35,6 +35,11 @@ pub fn fields(dataset: &str) -> Result<Vec<(&'static str, Kind)>> {
         ("quality_flags", Strings),
     ];
     f.extend(match dataset {
+        "bbo" => vec![
+            ("bid_price", Decimal), ("bid_qty", Decimal),
+            ("ask_price", Decimal), ("ask_qty", Decimal),
+            ("source_sequence", String), ("quote_valid", Bool),
+        ],
         "book_state_20" => vec![
             ("book_state_id", String),
             ("book_epoch_id", String),

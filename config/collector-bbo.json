@@ -1,0 +1,36 @@
+{
+  "exchanges": [
+    "bybit",
+    "aster",
+    "grvt",
+    "hyperliquid"
+  ],
+  "quote_assets": [
+    "USDT",
+    "USDC"
+  ],
+  "universe_path": "universe.json",
+  "spool_dir": "../var/bbo-spool",
+  "s3_bucket": "",
+  "s3_prefix": "quant/bbo-v1",
+  "aws_region": "ap-southeast-1",
+  "book_depth": 20,
+  "analysis_interval_seconds": 1,
+  "book_stale_seconds": 15,
+  "journal_rotate_seconds": 30,
+  "journal_max_bytes": 16777216,
+  "journal_fsync_seconds": 1,
+  "max_spool_bytes": 10737418240,
+  "queue_capacity": 4096,
+  "symbols_per_connection": 15,
+  "aster_oi_poll_seconds": 60,
+  "funding_poll_seconds": 300,
+  "funding_lookback_hours": 24,
+  "http_requests_per_second": 3,
+  "grvt_live_funding_unit": "percentage_points",
+  "external_liquidation_sources": [],
+  "aliases": {},
+  "bbo_only": true,
+  "archive_batch_seconds": 120,
+  "archive_batch_bytes": 16777216
+}

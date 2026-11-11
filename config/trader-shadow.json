@@ -1,0 +1,26 @@
+{
+  "mode": "shadow",
+  "collector_config": "collector-bbo.json",
+  "output_dir": "../var/trader-shadow",
+  "window_seconds": 900,
+  "minimum_samples": 900,
+  "entry_z": 3.0,
+  "exit_z": 0.5,
+  "max_quote_age_ms": 1500,
+  "max_exchange_age_ms": 2000,
+  "max_quote_skew_ms": 500,
+  "entry_fraction": 0.2,
+  "max_simultaneous_pairs": 2,
+  "loss_limit_fraction": 0.1,
+  "max_holding_seconds": 3600,
+  "stop_new_entries_before_end_seconds": 300,
+  "liquidate_before_end_seconds": 30,
+  "slippage_bps_per_execution": 1.0,
+  "minimum_edge_bps": 2.0,
+  "venues": {
+    "bybit": {"starting_equity":50.0,"taker_bps":5.5,"minimum_notional_floor":5.0},
+    "aster": {"starting_equity":50.0,"taker_bps":4.0,"minimum_notional_floor":5.0},
+    "grvt": {"starting_equity":50.0,"taker_bps":4.5,"minimum_notional_floor":0.0},
+    "hyperliquid": {"starting_equity":50.0,"taker_bps":4.5,"minimum_notional_floor":10.0}
+  }
+}

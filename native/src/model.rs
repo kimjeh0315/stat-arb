@@ -167,6 +167,8 @@ pub fn id(s: &str) -> String {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(default)]
+    pub bbo_only: bool,
     pub exchanges: Vec<String>,
     pub quote_assets: Vec<String>,
     pub universe_path: PathBuf,

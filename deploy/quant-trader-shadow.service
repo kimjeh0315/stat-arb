@@ -1,0 +1,22 @@
+[Unit]
+Description=Quant opening-hour shadow strategy (NO REAL ORDERS)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=quant
+Group=quant
+WorkingDirectory=/opt/quant
+Environment=RUST_LOG=info
+ExecStart=/opt/quant/bin/quant-trader --config /opt/quant/config/trader-shadow.json
+Restart=no
+UMask=0077
+StateDirectory=quant-trader-shadow
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/quant-trader-shadow
+TimeoutStopSec=30
+

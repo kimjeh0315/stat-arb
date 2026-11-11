@@ -8,7 +8,7 @@ Type=oneshot
 User=quant
 Group=quant
 WorkingDirectory=/opt/quant
-Environment=RUST_LOG=info
+Environment=RUST_LOG=info,aws_config=warn
 EnvironmentFile=/etc/quant/collector.env
 EnvironmentFile=/etc/quant/bbo.env
 Environment=QUANT_SHADOW_S3_PREFIX=quant/shadow-v1

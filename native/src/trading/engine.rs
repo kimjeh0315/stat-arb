@@ -134,9 +134,10 @@ impl Engine {
    if a.quote!=b.quote||a.settle!=b.settle {self.reject("currency_mismatch");continue;}
    if !self.executable(a,b,t){self.reject("stale_invalid_or_skewed");continue;}
    let key=format!("{}|{}",a.id,b.id);let spread=a.mid()-b.mid();
-   let h=self.history.entry(key).or_default();let stats=h.stats(t,&self.config);
+   let sample_time=t/1000*1000;
+   let h=self.history.entry(key).or_default();let stats=h.stats(sample_time,&self.config);
    // Score BEFORE adding current observation: no in-sample/look-ahead signal.
-   h.samples.push_back((t,spread));
+   h.samples.push_back((sample_time,spread));
    let Some((mean,sd))=stats else {self.reject("warmup");continue;};
    let z=(spread-mean)/sd;if z.abs()<self.config.entry_z {continue;}
    let d=z.signum();let va=&self.config.venues[&a.venue];let vb=&self.config.venues[&b.venue];
@@ -181,4 +182,10 @@ fn common_quantity(raw:f64,a:f64,b:f64)->Option<f64>{
  #[test] fn history_excludes_current_and_resets_on_gap(){let mut c=cfg();c.minimum_samples=3;c.window_seconds=4;let mut h=History::default();for (t,v) in [(1000,1.),(2000,2.),(3000,3.)]{h.samples.push_back((t,v));}assert_eq!(h.stats(4000,&c),Some((2.,1.)));assert!(h.stats(6001,&c).is_none());assert!(h.samples.is_empty());}
  #[test] fn rejects_invalid_risk(){let mut c=cfg();c.entry_fraction=0.21;assert!(c.validate().is_err());let mut c=cfg();c.entry_z=f64::NAN;assert!(c.validate().is_err());}
  #[test] fn hyperliquid_target_equals_floor(){let c=cfg();let h=&c.venues["hyperliquid"];assert_eq!(h.starting_equity*c.entry_fraction,h.minimum_notional_floor);}
+ fn quote(v:&str,t:i64,p:f64)->Quote {Quote{id:format!("{v}:COIN"),venue:v.into(),base:"COIN".into(),quote:"USDT".into(),settle:"USDT".into(),bid:p-0.001,ask:p+0.001,bid_qty:100.,ask_qty:100.,received_ms:t,event_ms:t,qty_step:Some(0.001),min_qty:Some(0.001)}}
+ fn warm()->Engine {let mut c=cfg();c.window_seconds=30;c.minimum_samples=30;let mut e=Engine::new(c).unwrap();for n in 0..30 {let t=n*1000;e.quote(quote("aster",t,10.+if n%2==0 {0.01}else{-0.01}));e.quote(quote("bybit",t,10.));assert!(e.tick(t,0,3_600_000).is_empty());}e}
+ #[test] fn entry_direction_and_realistic_exit(){let mut e=warm();e.quote(quote("aster",30000,11.));e.quote(quote("bybit",30000,10.));let rows=e.tick(30000,0,3_600_000);assert_eq!(rows.len(),1);assert_eq!(rows[0]["type"],"shadow_entry");assert_eq!(e.positions[0].direction,1.);assert!(e.positions[0].a_entry*e.positions[0].qty<=10.);e.quote(quote("aster",31000,10.));e.quote(quote("bybit",31000,10.));let rows=e.tick(31000,0,3_600_000);assert_eq!(rows[0]["type"],"shadow_exit");assert!(e.positions.is_empty());assert!(e.realized.values().sum::<f64>()>0.);}
+ #[test] fn mismatched_currency_and_stale_quotes_cannot_enter(){let mut e=warm();let mut a=quote("aster",30000,11.);a.quote="USDC".into();e.quote(a);e.quote(quote("bybit",30000,10.));assert!(e.tick(30000,0,3_600_000).is_empty());assert!(e.positions.is_empty());let mut e=warm();e.quote(quote("aster",30000,11.));assert!(e.tick(33000,0,3_600_000).is_empty());}
+ #[test] fn session_deadline_prevents_new_risk(){let mut e=warm();e.quote(quote("aster",30000,11.));e.quote(quote("bybit",30000,10.));assert!(e.tick(30000,0,330000).is_empty());}
+ #[test] fn disconnect_does_not_invent_a_close(){let mut e=warm();e.quote(quote("aster",30000,11.));e.quote(quote("bybit",30000,10.));e.tick(30000,0,3_600_000);e.disconnect(&["aster:COIN".into()]);let rows=e.tick(31000,0,3_600_000);assert_eq!(rows[0]["type"],"unresolved_shadow_exit");assert!(e.halted);assert_eq!(e.positions.len(),1);}
 }

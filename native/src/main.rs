@@ -1,4 +1,5 @@
 mod analysis;
+mod bbo;
 mod book;
 mod exchanges;
 mod journal;
@@ -166,6 +167,7 @@ fn inspect(input: &std::path::Path, raw_dump: Option<PathBuf>) -> Result<()> {
     };
     let mut counts = std::collections::BTreeMap::<String, usize>::new();
     let mut valid = std::collections::BTreeMap::<String, usize>::new();
+    let mut bbo_valid = std::collections::BTreeMap::<String, usize>::new();
     let mut asofs = std::collections::BTreeMap::<String, Vec<i64>>::new();
     let mut output = raw_dump.map(std::fs::File::create).transpose()?;
     for path in paths {
@@ -184,6 +186,9 @@ fn inspect(input: &std::path::Path, raw_dump: Option<PathBuf>) -> Result<()> {
                     .or_default() += 1;
                 if e.dataset == "book_state_20" && e.boolean("book_valid") {
                     *valid.entry(e.string("instrument_id").into()).or_default() += 1;
+                }
+                if e.dataset == "bbo" && e.boolean("quote_valid") {
+                    *bbo_valid.entry(e.string("instrument_id").into()).or_default() += 1;
                 }
                 if e.dataset == "analysis_state_1s" {
                     asofs
@@ -206,7 +211,7 @@ fn inspect(input: &std::path::Path, raw_dump: Option<PathBuf>) -> Result<()> {
     println!(
         "{}",
         serde_json::to_string_pretty(
-            &serde_json::json!({"counts":counts,"valid_book_instruments":valid.len(),"analysis_instruments":asofs.len(),"analysis_time_gaps":gaps})
+            &serde_json::json!({"counts":counts,"valid_book_instruments":valid.len(),"valid_bbo_instruments":bbo_valid.len(),"bbo_rows_per_instrument":bbo_valid,"analysis_instruments":asofs.len(),"analysis_time_gaps":gaps})
         )?
     );
     Ok(())

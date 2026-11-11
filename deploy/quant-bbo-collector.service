@@ -1,0 +1,29 @@
+[Unit]
+Description=Quant native public perpetual market collector
+Wants=network-online.target quant-bbo-archiver.service
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=quant
+Group=quant
+WorkingDirectory=/opt/quant
+Environment=QUANT_SPOOL_DIR=/var/lib/quant-bbo
+EnvironmentFile=/etc/quant/collector.env
+EnvironmentFile=/etc/quant/bbo.env
+ExecStart=/opt/quant/bin/quant-bbo --config /opt/quant/config/collector-bbo.json collect
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=120
+KillSignal=SIGTERM
+UMask=0077
+StateDirectory=quant-bbo
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/quant-bbo
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,6 @@
 //! Explicitly bounded 2026 NYSE calendar. Unknown years fail closed.
 use anyhow::{Result, ensure};
-use chrono::{Datelike, NaiveDate, Timelike, Utc, DateTime};
+use chrono::{Datelike, NaiveDate, Utc, DateTime};
 pub fn bounds(now: DateTime<Utc>) -> Result<Option<(i64,i64)>> {
     let d=now.date_naive();
     ensure!(d.year()==2026, "NYSE calendar only verified for 2026; update before running");

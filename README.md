@@ -21,6 +21,10 @@ target/release/quant-collector --config config/collector.json archive
 
 Lightsail에는 Linux용으로 빌드한 바이너리를 `/opt/quant/bin/quant-collector`에 설치하고, `deploy/`의 수집·저장 서비스 두 개를 사용합니다. macOS 빌드 결과는 Linux에서 실행할 수 없습니다.
 
+## BBO 경량 모드
+
+`config/collector-bbo.json`은 네 거래소의 최우선 매수·매도 가격과 잔량, 시각·상품·연결 상태만 저장합니다. 펀딩·OI·체결·청산·raw 및 1초 파생 분석을 생성하지 않습니다. 실행은 같은 바이너리의 `collect` / `archive`를 사용합니다. 배포와 데이터 범위는 [BBO 안내](scripts/bbo-collector.md)를 참고하세요.
+
 ## 계층 구조
 
 ```text

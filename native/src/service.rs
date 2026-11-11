@@ -53,6 +53,7 @@ async fn polls(
     tx: mpsc::Sender<Incoming>,
     mut stop: watch::Receiver<bool>,
 ) -> Result<()> {
+    if c.bbo_only { return Ok(()); }
     while h.seed_groups.load(std::sync::atomic::Ordering::Acquire) > 0 {
         tokio::select! {_=stop.changed()=>return Ok(()),_=tokio::time::sleep(Duration::from_millis(100))=>{}}
     }
@@ -191,12 +192,12 @@ async fn connection(
         }
     }
     let _reader_guard = Abort(reader_job.abort_handle());
-    for sub in exchanges::subscriptions(ex, items) {
+    for sub in if c.bbo_only { crate::bbo::subscriptions(ex, items) } else { exchanges::subscriptions(ex, items) } {
         writer.send(Message::Text(sub.to_string().into())).await?;
         tokio::time::sleep(Duration::from_millis(150)).await;
     }
     send(tx, p.metadata(items)).await?;
-    if ex == "aster" {
+    if ex == "aster" && !c.bbo_only {
         for i in items {
             let url = format!(
                 "https://fapi.asterdex.com/fapi/v1/depth?symbol={}&limit=1000",
@@ -241,7 +242,7 @@ async fn connection(
     let mut heartbeat = tokio::time::interval(Duration::from_secs(20));
     let mut last_message = Instant::now();
     let mut acked = std::collections::HashSet::new();
-    let expected = if ex == "grvt" {
+    let expected = if c.bbo_only { if ex == "hyperliquid" { items.len() } else { 1 } } else if ex == "grvt" {
         3
     } else if ex == "hyperliquid" {
         items.len() * 3
@@ -267,14 +268,14 @@ async fn connection(
                 let r=p.raw(ex,&incoming.source,incoming.symbol,incoming.payload,incoming.received);
                 let late=r.received_at_ns<watermark;
                 advance(tx,a,r.received_at_ns).await?;watermark=watermark.max(r.received_at_ns);
-                let start=Instant::now();let v:Value=match serde_json::from_str(&r.payload){Ok(v)=>v,Err(e)=>{send(tx,Envelope{raw:Some(r),events:vec![]}).await?;return Err(e.into());}};
+                let start=Instant::now();let v:Value=match serde_json::from_str(&r.payload){Ok(v)=>v,Err(e)=>{send(tx,Envelope{raw:if c.bbo_only {None} else {Some(r)},events:vec![]}).await?;return Err(e.into());}};
                 let parsed=if incoming.kind=="ws"{p.parse(&r,&v)}else{p.rest_events(&r,&v,&incoming.kind)};
-                let mut events=match parsed{Ok(e)=>e,Err(e)=>{send(tx,Envelope{raw:Some(r),events:vec![]}).await?;return Err(e);}};
+                let mut events=match parsed{Ok(e)=>e,Err(e)=>{send(tx,Envelope{raw:if c.bbo_only {None} else {Some(r)},events:vec![]}).await?;return Err(e);}};
                 if late{for e in &mut events{e.flag("late_processing");} }
                 for e in &mut events{e.n("received_mono_ns",r.received_mono_ns);}
                 parse_us+=start.elapsed().as_micros();messages+=1;bytes+=r.payload.len() as u64;
                 if let Some(key)=ack(ex,&v){acked.insert(key);if acked.len()>=expected&&!connected{connected=true;persist(tx,a,p.status(items,"connected","subscriptions acknowledged",r.received_at_ns)).await?;}}
-                persist(tx,a,Envelope{raw:Some(r),events}).await?;
+                persist(tx,a,Envelope{raw:if c.bbo_only {None} else {Some(r)},events}).await?;
             },
             result=&mut reader_job,if !*stop.borrow()=>{result??;anyhow::bail!("websocket reader exited");},
             _=timer.tick()=>{
@@ -300,6 +301,7 @@ async fn shard(
     mut stop: watch::Receiver<bool>,
 ) -> Result<()> {
     let mut a = Analysis::new(&items, now(), c.book_stale_seconds);
+    a.disabled = c.bbo_only;
     let mut delay = 1;
     let mut seeded = false;
     loop {
@@ -335,6 +337,8 @@ pub async fn discovery(c: &Config) -> Result<Vec<(String, Vec<Instrument>, Http)
         let items = exchanges::discover(ex, c, &u, &h).await?;
         let mut report = exchanges::report(&items, &u);
         report["exchange"] = json!(ex);
+        report["collection_mode"] = json!(if c.bbo_only { "bbo_only" } else { "full" });
+        if c.bbo_only { report["liquidation_coverage"] = json!("not_collected"); }
         tracing::info!(exchange=%ex,instruments=items.len(),missing=%report["missing_assets"],"discovery complete");
         reports.push(report);
         out.push((ex.clone(), items, h));
@@ -371,7 +375,7 @@ pub async fn collect(
     });
     let mut jobs = JoinSet::new();
     for (_, items, h) in found {
-        if items.first().is_some_and(|i| i.exchange == "aster") {
+        if !c.bbo_only && items.first().is_some_and(|i| i.exchange == "aster") {
             h.seed_groups.store(
                 items.len().div_ceil(c.symbols_per_connection),
                 std::sync::atomic::Ordering::Release,

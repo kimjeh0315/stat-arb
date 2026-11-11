@@ -12,6 +12,7 @@ struct State {
     gap: bool,
 }
 pub struct Analysis {
+    pub disabled: bool,
     states: BTreeMap<String, (Instrument, State)>,
     next: i64,
     stale: i64,
@@ -21,6 +22,7 @@ pub struct Analysis {
 impl Analysis {
     pub fn new(instruments: &[Instrument], start: i64, stale: u64) -> Self {
         Self {
+            disabled: false,
             states: instruments
                 .iter()
                 .map(|i| (i.key(), (i.clone(), State::default())))
@@ -32,6 +34,7 @@ impl Analysis {
         }
     }
     pub fn ingest(&mut self, e: &Event) -> bool {
+        if self.disabled { return true; }
         let dedupe = matches!(e.dataset.as_str(), "public_trade" | "liquidation_event")
             || (e.dataset == "funding_event" && e.string("rate_kind") == "settled");
         if dedupe {
@@ -82,6 +85,7 @@ impl Analysis {
     // Close every elapsed boundary before ingesting a newer message. No future state is used.
     pub fn advance(&mut self, watermark: i64) -> Result<Vec<Event>> {
         let mut out = Vec::new();
+        if self.disabled { return Ok(out); }
         while self.next <= watermark {
             let t = self.next;
             for (i, s) in self.states.values_mut() {
